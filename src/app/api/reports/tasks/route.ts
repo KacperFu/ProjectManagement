@@ -23,25 +23,30 @@ export async function GET(req: NextRequest) {
       ? [projectId]
       : allowedProjectIds;
 
+  const dateFilter =
+    from || to
+      ? {
+          ...(from ? { gte: new Date(from) } : {}),
+          ...(to ? { lte: new Date(to + "T23:59:59") } : {}),
+        }
+      : undefined;
+
   const tasks = await prisma.task.findMany({
     where: {
       projectId: { in: resolvedProjectIds },
       ...(statusFilter ? { status: statusFilter as never } : {}),
-      // Only apply date filter when explicitly provided
-      ...(from || to
-        ? {
-            createdAt: {
-              ...(from ? { gte: new Date(from) } : {}),
-              ...(to ? { lte: new Date(to + "T23:59:59") } : {}),
-            },
-          }
+      ...(dateFilter
+        ? { timeEntries: { some: { date: dateFilter } } }
         : {}),
     },
     include: {
       project: { select: { id: true, name: true, color: true } },
       assignee: { select: { id: true, name: true, email: true } },
       _count: { select: { timeEntries: true, subtasks: true } },
-      timeEntries: { select: { hours: true } },
+      timeEntries: {
+        select: { hours: true },
+        ...(dateFilter ? { where: { date: dateFilter } } : {}),
+      },
     },
     orderBy: { createdAt: "desc" },
   });
