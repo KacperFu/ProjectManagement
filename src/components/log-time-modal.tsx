@@ -68,7 +68,7 @@ export function LogTimeModal({ projectId, taskId, onClose, onLogged }: LogTimeMo
                 type="number"
                 value={hours}
                 onChange={(e) => setHours(e.target.value)}
-                min="0.1"
+                min="0.25"
                 max="24"
                 step="0.25"
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
