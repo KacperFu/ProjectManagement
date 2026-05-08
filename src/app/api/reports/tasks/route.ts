@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       ? [projectId]
       : allowedProjectIds;
 
-  const dateFilter =
+  const dueDateFilter =
     from || to
       ? {
           ...(from ? { gte: new Date(from) } : {}),
@@ -31,13 +31,21 @@ export async function GET(req: NextRequest) {
         }
       : undefined;
 
+  const entryDateFilter =
+    from || to
+      ? {
+          date: {
+            ...(from ? { gte: new Date(from) } : {}),
+            ...(to ? { lte: new Date(to + "T23:59:59") } : {}),
+          },
+        }
+      : undefined;
+
   const tasks = await prisma.task.findMany({
     where: {
       projectId: { in: resolvedProjectIds },
       ...(statusFilter ? { status: statusFilter as never } : {}),
-      ...(dateFilter
-        ? { timeEntries: { some: { date: dateFilter } } }
-        : {}),
+      ...(dueDateFilter ? { dueDate: dueDateFilter } : {}),
     },
     include: {
       project: { select: { id: true, name: true, color: true } },
@@ -45,7 +53,7 @@ export async function GET(req: NextRequest) {
       _count: { select: { timeEntries: true, subtasks: true } },
       timeEntries: {
         select: { hours: true },
-        ...(dateFilter ? { where: { date: dateFilter } } : {}),
+        ...(entryDateFilter ? { where: entryDateFilter } : {}),
       },
     },
     orderBy: { createdAt: "desc" },

@@ -59,6 +59,20 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   DONE:        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />,
 };
 
+function getWeekBounds() {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMon = day === 0 ? -6 : 1 - day;
+  const mon = new Date(now);
+  mon.setDate(now.getDate() + diffToMon);
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  return {
+    start: mon.toISOString().split("T")[0],
+    end: sun.toISOString().split("T")[0],
+  };
+}
+
 export default function ReportsPage() {
   const [entries, setEntries] = useState<TimeEntryRaw[]>([]);
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
@@ -66,15 +80,27 @@ export default function ReportsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectFilter, setProjectFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  // Default: no from restriction (all time), through today
   const [from, setFrom] = useState("");
-  const [to, setTo] = useState(new Date().toISOString().split("T")[0]);
+  const [to, setTo] = useState("");
+  const [ready, setReady] = useState(false);
+  const [weekStart, setWeekStart] = useState("");
+  const [weekEnd, setWeekEnd] = useState("");
+
+  useEffect(() => {
+    const bounds = getWeekBounds();
+    setFrom(bounds.start);
+    setTo(bounds.end);
+    setWeekStart(bounds.start);
+    setWeekEnd(bounds.end);
+    setReady(true);
+  }, []);
 
   useEffect(() => {
     fetch("/api/projects").then((r) => r.json()).then(setProjects);
   }, []);
 
   useEffect(() => {
+    if (!ready) return;
     const params = new URLSearchParams({ from, to });
     if (projectFilter) params.set("projectId", projectFilter);
     if (statusFilter) params.set("status", statusFilter);
@@ -87,7 +113,7 @@ export default function ReportsPage() {
       setTasks(tasksData.tasks ?? []);
       setByStatus(tasksData.byStatus ?? {});
     });
-  }, [from, to, projectFilter, statusFilter]);
+  }, [ready, from, to, projectFilter, statusFilter]);
 
   const totalHours = useMemo(() => entries.reduce((s, e) => s + e.hours, 0), [entries]);
   const totalTasks = Object.values(byStatus).reduce((s, v) => s + v, 0);
@@ -180,9 +206,7 @@ export default function ReportsPage() {
       <div className="bg-white rounded-xl border border-gray-100 p-5 mb-6">
         <div className="flex flex-wrap gap-4 items-end">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
-              From <span className="text-gray-300 normal-case font-normal">(optional)</span>
-            </label>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">From</label>
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
@@ -191,14 +215,12 @@ export default function ReportsPage() {
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
-          {from && (
-            <button
-              onClick={() => setFrom("")}
-              className="self-end px-3 py-2 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-            >
-              Clear from
-            </button>
-          )}
+          <button
+            onClick={() => { setFrom(weekStart); setTo(weekEnd); }}
+            className="self-end px-3 py-2 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+          >
+            This week
+          </button>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">Project</label>
             <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}
