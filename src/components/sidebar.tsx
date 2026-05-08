@@ -10,6 +10,7 @@ import {
   Calendar,
   BarChart3,
   Users,
+  Shield,
   LogOut,
   ChevronDown,
 } from "lucide-react";
@@ -73,6 +74,28 @@ export function Sidebar({ user }: SidebarProps) {
             </Link>
           );
         })}
+        {user.role === "ADMIN" && (
+          <Link
+            href="/admin"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+              pathname === "/admin" || pathname.startsWith("/admin/")
+                ? "bg-indigo-50 text-indigo-700"
+                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            )}
+          >
+            <Shield
+              className={cn(
+                "w-4.5 h-4.5",
+                pathname === "/admin" || pathname.startsWith("/admin/")
+                  ? "text-indigo-600"
+                  : "text-gray-400"
+              )}
+              size={18}
+            />
+            Admin
+          </Link>
+        )}
       </nav>
 
       <div className="p-3 border-t border-gray-100">
