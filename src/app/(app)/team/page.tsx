@@ -62,7 +62,7 @@ export default async function TeamPage() {
     .findMany({ where: { projectId: { in: projectIds } }, select: { id: true } })
     .then((rows) => rows.map((r) => r.id));
 
-  const [hoursThisMonth, hoursAllTime, assignedTasks, openTasks] =
+  const [hoursThisMonth, hoursAllTime, assignedTasks, openTasks, estimatedByUser] =
     await Promise.all([
       prisma.timeEntry.groupBy({
         by: ["userId"],
@@ -98,6 +98,15 @@ export default async function TeamPage() {
         },
         _count: true,
       }),
+      prisma.task.groupBy({
+        by: ["assigneeId"],
+        where: {
+          id: { in: projectTaskIds },
+          assigneeId: { in: memberIds },
+          estimatedHours: { not: null },
+        },
+        _sum: { estimatedHours: true },
+      }),
     ]);
 
   // Total tasks in the projects (for context)
@@ -117,6 +126,9 @@ export default async function TeamPage() {
   const openMap: Record<string, number> = {};
   openTasks.forEach((t) => { if (t.assigneeId) openMap[t.assigneeId] = t._count; });
 
+  const estimatedMap: Record<string, number> = {};
+  estimatedByUser.forEach((t) => { if (t.assigneeId) estimatedMap[t.assigneeId] = t._sum.estimatedHours ?? 0; });
+
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <div className="mb-6">
@@ -130,6 +142,7 @@ export default async function TeamPage() {
         {uniqueMembers.map(({ user, projects, role }) => {
           const monthHours = monthHoursMap[user.id] ?? 0;
           const allHours = allTimeHoursMap[user.id] ?? 0;
+          const estimated = estimatedMap[user.id] ?? 0;
           const assigned = assignedMap[user.id] ?? 0;
           const open = openMap[user.id] ?? 0;
 
@@ -152,15 +165,20 @@ export default async function TeamPage() {
               {/* Stats grid */}
               <div className="grid grid-cols-2 gap-2 mb-4">
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-lg font-bold text-indigo-600">{formatHours(monthHours)}</p>
+                  <p className="text-lg font-bold text-indigo-600">
+                    {formatHours(monthHours)}
+                    {monthHours > 0 && estimated > 0 && (
+                      <span className="text-xs text-gray-400 font-normal"> / {formatHours(estimated)}</span>
+                    )}
+                  </p>
                   <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> this month
+                    <Clock className="w-3 h-3" /> logged this month
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-lg font-bold text-violet-600">{formatHours(allHours)}</p>
+                  <p className="text-lg font-bold text-violet-600">{formatHours(estimated)}</p>
                   <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> all time
+                    <Clock className="w-3 h-3" /> estimated total
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3">
